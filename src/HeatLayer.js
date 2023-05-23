@@ -4,8 +4,6 @@ L.HeatLayer = (L.Layer ? L.Layer : L.Class).extend({
 
     // options: {
     //     minOpacity: 0.05,
-    //     maxZoom: 18,
-    //     radius: 25,
     //     blur: 15,
     //     max: 1.0
     // },
@@ -129,6 +127,13 @@ L.HeatLayer = (L.Layer ? L.Layer : L.Class).extend({
         if (!this._map) {
             return;
         }
+
+        var level = (25 - this._map.getZoom());
+        var rad = 400 / Math.pow(2, level -1 );
+        var blur = 240 /  Math.pow(2, level -1 );
+
+        this._heat.radius(rad , blur);
+        
         var data = [],
             r = this._heat._r,
             size = this._map.getSize(),
@@ -137,26 +142,24 @@ L.HeatLayer = (L.Layer ? L.Layer : L.Class).extend({
                 size.add([r, r])),
 
             max = this.options.max === undefined ? 1 : this.options.max,
-            maxZoom = this.options.maxZoom === undefined ? this._map.getMaxZoom() : this.options.maxZoom,
-            v = 1 / Math.pow(2, Math.max(0, Math.min(maxZoom - this._map.getZoom(), 12))),
-            cellSize = r / 2,
+            v = 0.5,
+            cellSize = r / Math.pow(2, level - 1),
             grid = [],
             panePos = this._map._getMapPanePos(),
             offsetX = panePos.x % cellSize,
             offsetY = panePos.y % cellSize,
             i, len, p, cell, x, y, j, len2, k;
-        console.log('local leaflet.heat')
-        // console.time('process');
+
         for (i = 0, len = this._latlngs.length; i < len; i++) {
             p = this._map.latLngToContainerPoint(this._latlngs[i]);
             if (bounds.contains(p)) {
                 x = Math.floor((p.x - offsetX) / cellSize) + 2;
                 y = Math.floor((p.y - offsetY) / cellSize) + 2;
-
                 var alt =
                     this._latlngs[i].alt !== undefined ? this._latlngs[i].alt :
                     this._latlngs[i][2] !== undefined ? +this._latlngs[i][2] : 1;
-                k = alt * v;
+                k = alt * v
+
 
                 grid[y] = grid[y] || [];
                 cell = grid[y][x];
@@ -164,10 +167,11 @@ L.HeatLayer = (L.Layer ? L.Layer : L.Class).extend({
                 if (!cell) {
                     grid[y][x] = [p.x, p.y, k];
 
-                } else {
+                }
+                 else {
                     cell[0] = (cell[0] * cell[2] + p.x * k) / (cell[2] + k); // x
                     cell[1] = (cell[1] * cell[2] + p.y * k) / (cell[2] + k); // y
-                    cell[2] += k; // cumulated intensity value
+                    cell[2] += k; // cumulated intensity value             
                 }
             }
         }
@@ -186,11 +190,8 @@ L.HeatLayer = (L.Layer ? L.Layer : L.Class).extend({
                 }
             }
         }
-        // console.timeEnd('process');
-
-        // console.time('draw ' + data.length);
+        
         this._heat.data(data).draw(this.options.minOpacity);
-        // console.timeEnd('draw ' + data.length);
 
         this._frame = null;
     },
@@ -198,8 +199,7 @@ L.HeatLayer = (L.Layer ? L.Layer : L.Class).extend({
     _animateZoom: function (e) {
         var scale = this._map.getZoomScale(e.zoom),
             offset = this._map._getCenterOffset(e.center)._multiplyBy(-scale).subtract(this._map._getMapPanePos());
-        console.log(scale)
-        console.log(offset)
+        
         if (L.DomUtil.setTransform) {
             L.DomUtil.setTransform(this._canvas, offset, scale);
 
